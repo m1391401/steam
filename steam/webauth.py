@@ -80,13 +80,12 @@ API_HEADERS = {
 }
 
 
-def sendAPIRequest(data, sApiInterface, sApiMethod, sApiVersion):
+def sendAPIRequest(session, data, sApiInterface, sApiMethod, sApiVersion):
     sUrl = "https://api.steampowered.com/{}Service/{}/v{}".format(sApiInterface, sApiMethod, sApiVersion)
     if sApiMethod == "GetPasswordRSAPublicKey":
-        res = requests.get(sUrl, timeout=10, headers=API_HEADERS, params=data)
+        res = session.get(sUrl, timeout=10, headers=API_HEADERS, params=data)
     else:
-        res = requests.post(sUrl, timeout=10, headers=API_HEADERS, data=data)
-
+        res = session.post(sUrl, timeout=10, headers=API_HEADERS, data=data)
     res.raise_for_status()
     return res.json()
 
@@ -116,7 +115,7 @@ class WebAuth2(object):
         self.session.headers['User-Agent'] = self.userAgent
 
     def _getRsaKey(self):
-        return sendAPIRequest({'account_name': self.username}, "IAuthentication", 'GetPasswordRSAPublicKey', 1)
+        return sendAPIRequest(self.session, {'account_name': self.username}, "IAuthentication", 'GetPasswordRSAPublicKey', 1)
 
     def _encryptPassword(self):
         r = self._getRsaKey()
@@ -131,7 +130,7 @@ class WebAuth2(object):
         return tuple((b64.decode('ascii'), r['response']['timestamp']))
 
     def _startSessionWithCredentials(self, sAccountEncryptedPassword, iTimeStamp):
-        r = sendAPIRequest(
+        r = sendAPIRequest(self.session, 
             {'device_friendly_name': self.userAgent,
              'account_name': self.username,
              'encrypted_password': sAccountEncryptedPassword,
@@ -150,7 +149,7 @@ class WebAuth2(object):
         self._startSessionWithCredentials(encryptedPassword[0], encryptedPassword[1])
 
     def _pollLoginStatus(self):
-        r = sendAPIRequest({
+        r = sendAPIRequest(self.session, {
             'client_id': str(self.clientID),
             'request_id': str(self.requestID)
         }, 'IAuthentication', 'PollAuthSessionStatus', 1)
